@@ -1,0 +1,179 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+    <title>Licor Dorado | Hidromiel Artesanal Premium</title>
+
+    <!-- Fuentes -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@400;700;900&family=Montserrat:wght@300;400;600;700&display=swap" rel="stylesheet">
+
+    <!-- Animate.css -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/animate.css/4.1.1/animate.min.css"/>
+
+    <!-- Estilos propios -->
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+
+<!-- ══ NAVBAR ══ -->
+<nav>
+    <div class="nav-inner">
+        <div class="nav-logo">
+            <div class="nav-badge gold-grad-bg">
+                <span style="color:#000;font-weight:700;font-size:13px">LD</span>
+            </div>
+            <span class="nav-title">Licor Dorado</span>
+        </div>
+        <a href="#catalogo" class="nav-link">Explorar Bodega</a>
+    </div>
+</nav>
+
+<!-- ══ HERO ══ -->
+<section class="hero">
+    <div id="hero-bg"
+         style="background-image: url('https://images.unsplash.com/photo-1599401053169-251f044996e3?q=80&w=1920');">
+    </div>
+    <div class="hero-overlay"></div>
+    <div class="hero-content animate__animated animate__fadeIn">
+        <span class="hero-eyebrow">Destilado en Bolivia</span>
+        <h1 class="hero-title">HIDROMIEL<br>CATÁLOGO</h1>
+        <p class="hero-sub">
+            Elixir milenario, ahora en múltiples presentaciones. Elija la medida de su placer.
+        </p>
+        <a href="#catalogo" class="hero-cta">Ver Bodega</a>
+    </div>
+</section>
+
+<!-- ══ CATÁLOGO ══ -->
+<section id="catalogo" class="catalogo-section">
+    <div class="container">
+        <h2 class="section-title font-gold">Nuestra Reserva</h2>
+        <p class="section-sub">Seleccione un elixir para realizar su pedido</p>
+
+        <!-- Controles -->
+        <div class="controls-bar">
+            <div id="filtros">
+                <button class="filter-btn active" data-filter="todos">Todos</button>
+                <button class="filter-btn" data-filter="disponible">Disponibles</button>
+                <button class="filter-btn" data-filter="bajo">Stock bajo</button>
+                <button class="filter-btn" data-filter="agotado">Agotados</button>
+            </div>
+            <div class="search-wrap">
+                <svg class="search-icon" width="14" height="14" fill="none" viewBox="0 0 24 24"
+                     stroke="rgba(212,175,55,.4)" stroke-width="2">
+                    <circle cx="11" cy="11" r="8"/>
+                    <line x1="21" y1="21" x2="16.65" y2="16.65"/>
+                </svg>
+                <input type="text" id="search" placeholder="Buscar…">
+            </div>
+        </div>
+
+        <span id="result-count"></span>
+
+        <!-- Grid de productos -->
+        <div id="productos-grid">
+            <div style="grid-column:1/-1;text-align:center;padding:80px 0;color:#4b5563;font-style:italic">
+                Consultando con el maestro bodeguero…
+            </div>
+        </div>
+
+        <!-- Estado vacío -->
+        <div id="empty-state" style="text-align:center;padding:80px 20px">
+            <p class="empty-title">Bodega vacía</p>
+            <p class="empty-sub">No hay productos disponibles en este momento.</p>
+        </div>
+    </div>
+</section>
+
+<!-- ══ MODAL DE PEDIDO ══ -->
+<div id="modal-pedido" role="dialog" aria-modal="true">
+    <div class="glass-card modal-card animate__animated animate__fadeInUp animate__faster">
+
+        <button onclick="cerrarModal()" class="modal-close" aria-label="Cerrar">✕</button>
+
+        <div class="modal-header">
+            <span class="modal-eyebrow">Encomienda Nacional · Pago Seguro</span>
+            <h3 class="modal-title" id="prod-nombre-modal">Producto</h3>
+            <p class="modal-desc" id="prod-desc-modal"></p>
+        </div>
+
+        <form onsubmit="finalizarPedido(event)" id="order-form">
+
+            <div class="form-grid-2">
+                <div class="form-field">
+                    <label class="form-label" for="order-nom">Nombre Completo</label>
+                    <input type="text" id="order-nom" required placeholder="Tu nombre…" class="modal-input">
+                </div>
+                <div class="form-field">
+                    <label class="form-label" for="order-ci">C.I. / DNI</label>
+                    <input type="text" id="order-ci" required placeholder="Ej: 12345678" class="modal-input">
+                </div>
+            </div>
+
+            <div class="form-field">
+                <label class="form-label" for="order-tel">Número de WhatsApp</label>
+                <input type="tel" id="order-tel" required placeholder="Ej: 70012345" class="modal-input">
+            </div>
+
+            <div class="form-grid-2">
+                <div class="form-field">
+                    <label class="form-label" for="order-city">Departamento de Destino</label>
+                    <select id="order-city" required class="modal-input" style="appearance:none">
+                        <option value="" disabled selected>Seleccionar…</option>
+                        <option value="La Paz">La Paz</option>
+                        <option value="Santa Cruz">Santa Cruz</option>
+                        <option value="Cochabamba">Cochabamba</option>
+                        <option value="Oruro">Oruro</option>
+                        <option value="Tarija">Tarija</option>
+                        <option value="Chuquisaca (Sucre)">Chuquisaca (Sucre)</option>
+                        <option value="Potosí">Potosí</option>
+                        <option value="Beni (Trinidad)">Beni (Trinidad)</option>
+                        <option value="Pando (Cobija)">Pando (Cobija)</option>
+                    </select>
+                </div>
+                <div class="form-field">
+                    <label class="form-label">Cantidad</label>
+                    <div class="modal-input qty-stepper">
+                        <button type="button" onclick="modQ(-1)" class="qty-btn">−</button>
+                        <span id="order-qty">1</span>
+                        <button type="button" onclick="modQ(1)" class="qty-btn">+</button>
+                    </div>
+                </div>
+            </div>
+
+
+            <!-- Total -->
+            <div class="total-box">
+                <div>
+                    <p class="total-label">Total del pedido</p>
+                    <span class="total-tag">TOTAL</span>
+                </div>
+                <span class="total-amount" id="order-total">Bs. 0.00</span>
+            </div>
+
+            <!-- Botón WhatsApp -->
+            <button type="submit" class="submit-btn btn-gold">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
+                    <path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413z"/>
+                </svg>
+                Confirmar vía WhatsApp
+            </button>
+
+        </form>
+    </div>
+</div>
+
+<!-- ══ FOOTER ══ -->
+<footer>
+    <p class="footer-brand">LICOR DORADO</p>
+    <p class="footer-sub">Hidromiel Artesanal · Bolivia · 2024</p>
+</footer>
+
+<!-- Scripts -->
+<script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.6.0/dist/confetti.browser.min.js"></script>
+<script src="script.js"></script>
+</body>
+</html>
