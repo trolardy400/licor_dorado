@@ -1,26 +1,48 @@
 // ══════════════════════════════════════
-//   CONFIGURACIÓN — edita solo esto
+//   FIREBASE CONFIG
 // ══════════════════════════════════════
-const STORAGE_KEY = 'ld_catalog';
-const WA_NUMBER   = '59163504900'; // Número WhatsApp con código de país, sin +
+import { initializeApp }              from "https://www.gstatic.com/firebasejs/12.0.0/firebase-app.js";
+import { getFirestore, collection,
+         onSnapshot }                 from "https://www.gstatic.com/firebasejs/12.0.0/firebase-firestore.js";
+
+const firebaseConfig = {
+    apiKey:            "AIzaSyDPFlvN3Jo7yvbYChf60fTiNG0silDgpsQ",
+    authDomain:        "licor-dorado.firebaseapp.com",
+    projectId:         "licor-dorado",
+    storageBucket:     "licor-dorado.firebasestorage.app",
+    messagingSenderId: "849013431457",
+    appId:             "1:849013431457:web:6dbb5893fb54c2614fa4e0"
+};
+
+const app = initializeApp(firebaseConfig);
+const db  = getFirestore(app);
+
+// ══════════════════════════════════════
+//   CONFIGURACIÓN
+// ══════════════════════════════════════
+const WA_NUMBER    = '59163504900';
 const IMG_FALLBACK = 'https://images.unsplash.com/photo-1599401053169-251f044996e3?auto=format&fit=crop&q=80&w=800';
 
 // ══ Estado global ══
+let catalogData      = [];
 let prodSeleccionado = null;
-let qty = 1;
-let currentFilter = 'todos';
-let searchTerm    = '';
+let qty              = 1;
+let currentFilter    = 'todos';
+let searchTerm       = '';
 
 // ══════════════════════════════════════
-//   LEER CATÁLOGO DESDE localStorage
+//   ESCUCHAR CATÁLOGO EN TIEMPO REAL
 // ══════════════════════════════════════
-function getCatalog() {
-    try { return JSON.parse(localStorage.getItem(STORAGE_KEY)) || []; }
-    catch { return []; }
-}
+onSnapshot(collection(db, 'catalogo'), snapshot => {
+    catalogData = snapshot.docs.map(d => ({ id: d.id, ...d.data() }));
+    render();
+});
 
+// ══════════════════════════════════════
+//   FILTRAR
+// ══════════════════════════════════════
 function filteredCatalog() {
-    let data = getCatalog();
+    let data = catalogData;
     if (searchTerm) {
         const q = searchTerm.toLowerCase();
         data = data.filter(p =>
@@ -39,7 +61,7 @@ function filteredCatalog() {
 // ══════════════════════════════════════
 function render() {
     const data    = filteredCatalog();
-    const total   = getCatalog().length;
+    const total   = catalogData.length;
     const grid    = document.getElementById('productos-grid');
     const empty   = document.getElementById('empty-state');
     const counter = document.getElementById('result-count');
@@ -57,7 +79,7 @@ function render() {
         : `${data.length} de ${total} productos`;
 
     if (!data.length) {
-        grid.innerHTML = `<p class="col-span-full text-center" style="color:#6b7280;font-style:italic;padding:48px 0;grid-column:1/-1">Sin resultados para esa búsqueda.</p>`;
+        grid.innerHTML = `<p style="color:#6b7280;font-style:italic;padding:48px 0;grid-column:1/-1;text-align:center">Sin resultados para esa búsqueda.</p>`;
         return;
     }
 
@@ -77,8 +99,7 @@ function render() {
                 <div class="agotado-overlay">
                     <span class="font-gold" style="font-size:1.2rem;letter-spacing:.15em">AGOTADO</span>
                 </div>` : ''}
-                ${bajo ? `
-                <span class="badge-low badge-stock-low">Solo ${stock} u.</span>` : ''}
+                ${bajo ? `<span class="badge-low badge-stock-low">Solo ${stock} u.</span>` : ''}
             </div>
             <div class="card-body">
                 <h3 class="card-title">${p.nombre}</h3>
@@ -88,7 +109,7 @@ function render() {
                 <div class="card-footer">
                     <span class="card-price">Bs. ${parseFloat(p.precio).toFixed(2)}</span>
                     <button
-                        onclick="abrirPedidoById('${p.id}')"
+                        onclick="window._abrirPedido('${p.id}')"
                         ${agotado ? 'disabled' : ''}
                         class="card-btn">
                         ${agotado ? 'Sin reserva' : 'Solicitar'}
@@ -102,13 +123,9 @@ function render() {
 // ══════════════════════════════════════
 //   MODAL
 // ══════════════════════════════════════
-function abrirPedidoById(id) {
-    const prod = getCatalog().find(p => p.id === id);
+window._abrirPedido = function(id) {
+    const prod = catalogData.find(p => p.id === id);
     if (!prod) return;
-    abrirPedido(prod);
-}
-
-function abrirPedido(prod) {
     prodSeleccionado = prod;
     qty = 1;
     document.getElementById('prod-nombre-modal').textContent = prod.nombre;
@@ -118,18 +135,18 @@ function abrirPedido(prod) {
     actualizarTotal();
     document.getElementById('modal-pedido').classList.add('open');
     document.body.style.overflow = 'hidden';
-}
+};
 
-function cerrarModal() {
+window.cerrarModal = function() {
     document.getElementById('modal-pedido').classList.remove('open');
     document.body.style.overflow = '';
-}
+};
 
-function modQ(v) {
+window.modQ = function(v) {
     qty = Math.max(1, Math.min(qty + v, parseInt(prodSeleccionado.stock) || 1));
     document.getElementById('order-qty').textContent = qty;
     actualizarTotal();
-}
+};
 
 function actualizarTotal() {
     const t = qty * parseFloat(prodSeleccionado.precio || 0);
@@ -139,21 +156,20 @@ function actualizarTotal() {
 // ══════════════════════════════════════
 //   ENVIAR PEDIDO POR WHATSAPP
 // ══════════════════════════════════════
-function finalizarPedido(e) {
+window.finalizarPedido = function(e) {
     e.preventDefault();
 
-    const nom   = document.getElementById('order-nom').value.trim();
-    const ci    = document.getElementById('order-ci').value.trim();
-    const tel   = document.getElementById('order-tel').value.trim();
-    const ciu   = document.getElementById('order-city').value;
-    const total = (qty * parseFloat(prodSeleccionado.precio)).toFixed(2);
+    const nom    = document.getElementById('order-nom').value.trim();
+    const ci     = document.getElementById('order-ci').value.trim();
+    const tel    = document.getElementById('order-tel').value.trim();
+    const ciu    = document.getElementById('order-city').value;
+    const total  = (qty * parseFloat(prodSeleccionado.precio)).toFixed(2);
+    const imgUrl = prodSeleccionado.imagen || IMG_FALLBACK;
 
     confetti({
         particleCount: 160, spread: 75, origin: { y: 0.6 },
         colors: ['#d4af37', '#fbf5b7', '#ffffff', '#aa8414']
     });
-
-    const imgUrl = prodSeleccionado.imagen || IMG_FALLBACK;
 
     const msg = encodeURIComponent(
         `✨ *LICOR DORADO — NUEVO PEDIDO* ✨\n\n` +
@@ -172,7 +188,7 @@ function finalizarPedido(e) {
         window.open(`https://wa.me/${WA_NUMBER}?text=${msg}`, '_blank');
         cerrarModal();
     }, 900);
-}
+};
 
 // ══════════════════════════════════════
 //   FILTROS Y BÚSQUEDA
@@ -191,35 +207,14 @@ document.getElementById('search').addEventListener('input', e => {
     render();
 });
 
-// ══════════════════════════════════════
-//   CERRAR MODAL (teclado + fondo)
-// ══════════════════════════════════════
-document.addEventListener('keydown', e => {
-    if (e.key === 'Escape') cerrarModal();
-});
-
+// ══ Cerrar modal ══
+document.addEventListener('keydown', e => { if (e.key === 'Escape') cerrarModal(); });
 document.getElementById('modal-pedido').addEventListener('click', e => {
     if (e.target === document.getElementById('modal-pedido')) cerrarModal();
 });
 
-// ══════════════════════════════════════
-//   PARALLAX HERO
-// ══════════════════════════════════════
+// ══ Parallax hero ══
 window.addEventListener('scroll', () => {
     const heroBg = document.getElementById('hero-bg');
-    if (heroBg) {
-        heroBg.style.transform = `scale(${1.05 + window.scrollY / 5000})`;
-    }
+    if (heroBg) heroBg.style.transform = `scale(${1.05 + window.scrollY / 5000})`;
 });
-
-// ══════════════════════════════════════
-//   SINCRONIZACIÓN EN TIEMPO REAL
-//   (si admin.html está abierto en otra
-//    pestaña del mismo origen)
-// ══════════════════════════════════════
-window.addEventListener('storage', e => {
-    if (e.key === STORAGE_KEY) render();
-});
-
-// ══ Render inicial ══
-render();

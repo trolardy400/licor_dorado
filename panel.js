@@ -1,29 +1,34 @@
 // ══════════════════════════════════════
-//   CLAVE en localStorage (compartida
-//   con index.html)
+//   FIREBASE CONFIG
 // ══════════════════════════════════════
-const STORAGE_KEY = 'ld_catalog';
+import { initializeApp }                   from "https://www.gstatic.com/firebasejs/12.0.0/firebase-app.js";
+import { getFirestore, collection, doc,
+         onSnapshot, addDoc, updateDoc,
+         deleteDoc, serverTimestamp }       from "https://www.gstatic.com/firebasejs/12.0.0/firebase-firestore.js";
 
-// ══ Leer / escribir ══
-function getCatalog() {
-    try { return JSON.parse(localStorage.getItem(STORAGE_KEY)) || []; }
-    catch { return []; }
-}
+const firebaseConfig = {
+    apiKey:            "AIzaSyDPFlvN3Jo7yvbYChf60fTiNG0silDgpsQ",
+    authDomain:        "licor-dorado.firebaseapp.com",
+    projectId:         "licor-dorado",
+    storageBucket:     "licor-dorado.firebasestorage.app",
+    messagingSenderId: "849013431457",
+    appId:             "1:849013431457:web:6dbb5893fb54c2614fa4e0"
+};
 
-function saveCatalog(data) {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
-    const now = new Date().toLocaleString('es-BO', {
-        day: '2-digit', month: 'short', year: 'numeric',
-        hour: '2-digit', minute: '2-digit'
-    });
-    document.getElementById('last-update').textContent = `Última actualización: ${now}`;
+const app = initializeApp(firebaseConfig);
+const db  = getFirestore(app);
+const col = collection(db, 'catalogo');
+
+// ══ Estado ══
+let productos = [];
+
+// ══════════════════════════════════════
+//   ESCUCHAR CAMBIOS EN TIEMPO REAL
+// ══════════════════════════════════════
+onSnapshot(col, snapshot => {
+    productos = snapshot.docs.map(d => ({ id: d.id, ...d.data() }));
     renderLista();
-}
-
-// ══ ID único ══
-function uid() {
-    return Date.now().toString(36) + Math.random().toString(36).slice(2, 6);
-}
+});
 
 // ══ Toast ══
 function toast(msg) {
@@ -37,10 +42,10 @@ function toast(msg) {
 //   RENDERIZAR LISTA
 // ══════════════════════════════════════
 function renderLista() {
-    const productos = getCatalog();
     const lista   = document.getElementById('lista');
     const empty   = document.getElementById('empty-msg');
     const counter = document.getElementById('counter');
+    const imgFallback = 'https://images.unsplash.com/photo-1599401053169-251f044996e3?auto=format&fit=crop&q=80&w=200';
 
     counter.textContent = `${productos.length} producto${productos.length !== 1 ? 's' : ''}`;
 
@@ -55,7 +60,6 @@ function renderLista() {
         const stock      = parseInt(p.stock);
         const badgeClass = stock === 0 ? 'badge-zero' : stock <= 3 ? 'badge-low' : 'badge-ok';
         const badgeLabel = stock === 0 ? 'Agotado'    : stock <= 3 ? 'Stock bajo' : 'Disponible';
-        const imgFallback = 'https://images.unsplash.com/photo-1599401053169-251f044996e3?auto=format&fit=crop&q=80&w=200';
 
         return `
         <div class="glass producto-item">
@@ -72,28 +76,24 @@ function renderLista() {
                 ${p.descripcion ? `<p class="producto-desc">${p.descripcion}</p>` : ''}
             </div>
 
-            <!-- Controles de stock -->
             <div class="stock-controls">
-                <button class="btn-stock text-red-400"
-                        onclick="cambiarStock('${p.id}', -1)" title="Reducir stock"
-                        style="color:#f87171">−</button>
+                <button class="btn-stock" style="color:#f87171"
+                        onclick="window._cambiarStock('${p.id}', -1)">−</button>
                 <span class="stock-value">${p.stock}</span>
-                <button class="btn-stock"
-                        onclick="cambiarStock('${p.id}', 1)" title="Aumentar stock"
-                        style="color:#4ade80">+</button>
+                <button class="btn-stock" style="color:#4ade80"
+                        onclick="window._cambiarStock('${p.id}', 1)">+</button>
             </div>
 
-            <!-- Acciones -->
             <div class="acciones">
                 <button class="btn-accion btn-editar"
-                        onclick="editarProducto('${p.id}')" title="Editar">
+                        onclick="window._editarProducto('${p.id}')">
                     <svg width="13" height="13" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
                         <path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7"/>
                         <path d="M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z"/>
                     </svg>
                 </button>
                 <button class="btn-accion btn-eliminar"
-                        onclick="eliminarProducto('${p.id}')" title="Eliminar">
+                        onclick="window._eliminarProducto('${p.id}')">
                     <svg width="13" height="13" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
                         <polyline points="3 6 5 6 21 6"/>
                         <path d="M19 6l-1 14a2 2 0 01-2 2H8a2 2 0 01-2-2L5 6"/>
@@ -108,7 +108,7 @@ function renderLista() {
 // ══════════════════════════════════════
 //   CRUD
 // ══════════════════════════════════════
-function guardar() {
+window.guardar = async function() {
     const nombre = document.getElementById('f-nombre').value.trim();
     const precio = parseFloat(document.getElementById('f-precio').value);
     const stock  = parseInt(document.getElementById('f-stock').value);
@@ -118,45 +118,51 @@ function guardar() {
         return;
     }
 
-    const editId  = document.getElementById('edit-id').value;
-    const catalog = getCatalog();
-
     const entry = {
-        id:          editId || uid(),
         nombre,
         descripcion: document.getElementById('f-desc').value.trim(),
         precio:      parseFloat(precio.toFixed(2)),
         stock,
         imagen:      document.getElementById('f-img').value.trim() ||
                      'https://images.unsplash.com/photo-1599401053169-251f044996e3?auto=format&fit=crop&q=80&w=400',
-        actualizado: Date.now()
+        actualizado: serverTimestamp()
     };
 
-    if (editId) {
-        const idx = catalog.findIndex(p => p.id === editId);
-        if (idx > -1) catalog[idx] = { ...catalog[idx], ...entry };
-        toast('✓ Producto actualizado');
-    } else {
-        entry.creado = Date.now();
-        catalog.push(entry);
-        toast('✓ Producto añadido al catálogo');
+    const editId = document.getElementById('edit-id').value;
+
+    try {
+        if (editId) {
+            await updateDoc(doc(db, 'catalogo', editId), entry);
+            toast('✓ Producto actualizado');
+        } else {
+            entry.creado = serverTimestamp();
+            await addDoc(col, entry);
+            toast('✓ Producto añadido al catálogo');
+        }
+        cancelarEdicion();
+    } catch (err) {
+        console.error(err);
+        toast('✗ Error al guardar');
     }
+};
 
-    saveCatalog(catalog);
-    cancelarEdicion();
-}
+window._cambiarStock = async function(id, delta) {
+    const p = productos.find(x => x.id === id);
+    if (!p) return;
+    const nuevoStock = Math.max(0, (parseInt(p.stock) || 0) + delta);
+    try {
+        await updateDoc(doc(db, 'catalogo', id), {
+            stock: nuevoStock,
+            actualizado: serverTimestamp()
+        });
+    } catch (err) {
+        console.error(err);
+        toast('✗ Error al actualizar stock');
+    }
+};
 
-function cambiarStock(id, delta) {
-    const catalog = getCatalog();
-    const idx = catalog.findIndex(p => p.id === id);
-    if (idx === -1) return;
-    catalog[idx].stock = Math.max(0, (parseInt(catalog[idx].stock) || 0) + delta);
-    catalog[idx].actualizado = Date.now();
-    saveCatalog(catalog);
-}
-
-function editarProducto(id) {
-    const p = getCatalog().find(x => x.id === id);
+window._editarProducto = function(id) {
+    const p = productos.find(x => x.id === id);
     if (!p) return;
     document.getElementById('edit-id').value  = id;
     document.getElementById('f-nombre').value = p.nombre;
@@ -168,22 +174,26 @@ function editarProducto(id) {
     document.getElementById('btn-cancelar').classList.add('visible');
     document.getElementById('f-nombre').focus();
     window.scrollTo({ top: 0, behavior: 'smooth' });
-}
+};
 
-function cancelarEdicion() {
+window.cancelarEdicion = function() {
     ['edit-id', 'f-nombre', 'f-desc', 'f-precio', 'f-stock', 'f-img'].forEach(id => {
         document.getElementById(id).value = '';
     });
     document.getElementById('form-title').textContent = 'Añadir Producto';
     document.getElementById('btn-cancelar').classList.remove('visible');
-}
+};
 
-function eliminarProducto(id) {
+window._eliminarProducto = async function(id) {
     if (!confirm('¿Eliminar este producto del catálogo?')) return;
-    const catalog = getCatalog().filter(p => p.id !== id);
-    saveCatalog(catalog);
-    toast('✓ Producto eliminado');
-}
+    try {
+        await deleteDoc(doc(db, 'catalogo', id));
+        toast('✓ Producto eliminado');
+    } catch (err) {
+        console.error(err);
+        toast('✗ Error al eliminar');
+    }
+};
 
 // ══════════════════════════════════════
 //   EXPORTAR
@@ -201,30 +211,27 @@ function download(name, blob) {
     setTimeout(() => { URL.revokeObjectURL(url); a.remove(); }, 800);
 }
 
-function exportJSON() {
-    const data = getCatalog();
-    if (!data.length) { toast('⚠ El catálogo está vacío'); return; }
-    const payload = { catalogo: data, exportado: new Date().toISOString(), total: data.length };
+window.exportJSON = function() {
+    if (!productos.length) { toast('⚠ El catálogo está vacío'); return; }
+    const payload = { catalogo: productos, exportado: new Date().toISOString(), total: productos.length };
     download(`catalogo-ld-${dateTag()}.json`,
         new Blob([JSON.stringify(payload, null, 2)], { type: 'application/json' }));
     toast('✓ JSON descargado');
-}
+};
 
-function exportCSV() {
-    const data = getCatalog();
-    if (!data.length) { toast('⚠ El catálogo está vacío'); return; }
+window.exportCSV = function() {
+    if (!productos.length) { toast('⚠ El catálogo está vacío'); return; }
     const cols = ['nombre', 'descripcion', 'precio', 'stock', 'imagen'];
-    const csv  = [cols.join(','), ...data.map(p =>
+    const csv  = [cols.join(','), ...productos.map(p =>
         cols.map(c => `"${String(p[c] ?? '').replace(/"/g, '""')}"`).join(',')
     )].join('\n');
     download(`catalogo-ld-${dateTag()}.csv`,
         new Blob(['\ufeff' + csv], { type: 'text/csv;charset=utf-8;' }));
     toast('✓ CSV descargado');
-}
+};
 
-function imprimirPDF() {
-    const data = getCatalog();
-    if (!data.length) { toast('⚠ El catálogo está vacío'); return; }
+window.imprimirPDF = function() {
+    if (!productos.length) { toast('⚠ El catálogo está vacío'); return; }
     const fecha = new Date().toLocaleDateString('es-BO', {
         day: '2-digit', month: 'long', year: 'numeric'
     });
@@ -245,7 +252,7 @@ function imprimirPDF() {
         <table>
             <thead><tr><th>#</th><th>Producto</th><th>Descripción</th><th>Precio (Bs.)</th><th>Stock</th></tr></thead>
             <tbody>
-                ${data.map((p, i) => `
+                ${productos.map((p, i) => `
                 <tr>
                     <td>${i + 1}</td>
                     <td><strong>${p.nombre}</strong></td>
@@ -255,11 +262,8 @@ function imprimirPDF() {
                 </tr>`).join('')}
             </tbody>
         </table>
-        <div class="foot">${data.length} productos · Licor Dorado</div>`;
+        <div class="foot">${productos.length} productos · Licor Dorado</div>`;
     pv.style.display = 'block';
     window.print();
     pv.style.display = 'none';
-}
-
-// ══ Init ══
-renderLista();
+};
